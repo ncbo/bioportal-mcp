@@ -117,7 +117,7 @@ BioPortal hosts hundreds of ontologies. Some popular ones include:
 
 ```bash
 # Clone the repository
-git clone https://github.com/justaddcoffee/bioportal-mcp.git
+git clone https://github.com/ncbo/bioportal-mcp.git
 cd bioportal-mcp
 
 # Install development dependencies
