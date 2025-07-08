@@ -9,6 +9,7 @@ description = "A model context protocol (MCP) for interacting with Bioportal"
 readme = "README.md"
 authors = [
     {name = "Justin Reese", email = "justaddcoffee@gmail.com"},
+    {name = "J. Harry Caufield", email = "jhc@lbl.gov"},
 ]
 requires-python = ">=3.11"
 dependencies = [
@@ -23,8 +24,8 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/justaddcoffee/bioportal-mcp"
-"Bug Tracker" = "https://github.com/justaddcoffee/bioportal-mcp/issues"
+"Homepage" = "https://github.com/ncbo/bioportal-mcp"
+"Bug Tracker" = "https://github.com/ncbo/bioportal-mcp/issues"
 
 [project.scripts]
 bioportal-mcp = "bioportal_mcp.main:main"
