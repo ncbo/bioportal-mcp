@@ -41,16 +41,17 @@ def search_bioportal(
     # Get API key from parameter or environment
     if api_key is None:
         api_key = os.getenv('BIOPORTAL_API_KEY')
-    
+
     if api_key is None:
-        raise ValueError("BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
-    
+        raise ValueError(
+            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
+
     base_url = "https://data.bioontology.org"
     endpoint_url = f"{base_url}/search"
-    
+
     all_records = []
     page = 1
-    
+
     while True:
         params = {
             "q": query,
@@ -61,10 +62,10 @@ def search_bioportal(
             "also_search_properties": "true" if also_search_properties else "false",
             "also_search_obsolete": "true" if also_search_obsolete else "false",
         }
-        
+
         if ontologies:
             params["ontologies"] = ",".join(ontologies)
-        
+
         try:
             response = requests.get(endpoint_url, params=params)
             response.raise_for_status()
@@ -77,7 +78,7 @@ def search_bioportal(
             if verbose:
                 print(f"Error parsing JSON response: {e}")
             break
-        
+
         # BioPortal search returns results in 'collection' field
         if isinstance(data, dict) and 'collection' in data:
             records = data['collection']
@@ -87,28 +88,30 @@ def search_bioportal(
             if verbose:
                 print(f"Unexpected response format: {type(data)}")
             break
-        
+
         if not records:
             break
-            
+
         all_records.extend(records)
-        
+
         if verbose:
-            print(f"Fetched {len(records)} records from page {page}; total so far: {len(all_records)}")
-        
+            print(
+                f"Fetched {len(records)} records from page {page}; total so far: {len(all_records)}")
+
         # Check if we've hit the max_records limit
         if max_records is not None and len(all_records) >= max_records:
             all_records = all_records[:max_records]
             if verbose:
-                print(f"Reached max_records limit: {max_records}. Stopping fetch.")
+                print(
+                    f"Reached max_records limit: {max_records}. Stopping fetch.")
             break
-        
+
         # BioPortal pagination: if we got fewer records than page size, we're done
         if len(records) < max_page_size:
             break
-            
+
         page += 1
-    
+
     return all_records
 
 
@@ -119,13 +122,13 @@ def search_ontology_terms(
     max_results: int = 10,
     require_exact_match: bool = False,
     api_key: Optional[str] = None
-) -> List[Tuple[str, str, str]]:
+) -> List[Tuple[str, str, str, str]]:
     """
     Search for ontology terms in BioPortal.
-    
+
     This function searches across BioPortal ontologies for terms matching the given query.
-    It returns a list of tuples containing the term ID, preferred label, and ontology.
-    
+    It returns a list of tuples containing the term ID, preferred label, ontology, and ontology URL.
+
     Args:
         query: The search term (e.g., "melanoma", "breast cancer", "neuron").
         ontologies: Comma-separated list of ontology acronyms to search in (e.g., "NCIT,GO,HP").
@@ -133,20 +136,21 @@ def search_ontology_terms(
         max_results: Maximum number of results to return (default: 10).
         require_exact_match: If True, only return exact matches (default: False).
         api_key: BioPortal API key. If not provided, uses BIOPORTAL_API_KEY environment variable.
-    
+
     Returns:
-        List[Tuple[str, str, str]]: List of tuples where each tuple contains:
+        List[Tuple[str, str, str, str]]: List of tuples where each tuple contains:
             - Term ID (e.g., "http://purl.obolibrary.org/obo/NCIT_C4872")
             - Preferred label (e.g., "Breast Cancer")
             - Ontology acronym (e.g., "NCIT")
-    
+            - Ontology URL (e.g., "https://bioportal.bioontology.org/ontologies/NCIT")
+
     Examples:
         # Search for cancer terms
         results = search_ontology_terms("cancer")
-        
+
         # Search for cell types in Cell Ontology
         results = search_ontology_terms("neuron", ontologies="CL")
-        
+
         # Search for exact matches only
         results = search_ontology_terms("melanoma", require_exact_match=True)
     """
@@ -154,7 +158,7 @@ def search_ontology_terms(
         ontology_list = None
         if ontologies:
             ontology_list = [ont.strip() for ont in ontologies.split(",")]
-        
+
         # Search using BioPortal API
         results = search_bioportal(
             query=query,
@@ -164,26 +168,30 @@ def search_ontology_terms(
             max_records=max_results,
             verbose=False
         )
-        
+
         # Process results into simplified format
         processed_results = []
         for result in results[:max_results]:  # Ensure we don't exceed max_results
             term_id = result.get('@id', '')
             pref_label = result.get('prefLabel', '')
-            
+
             # Extract ontology from links if available
             ontology_acronym = ''
+            ontology_page_url = ''
             if 'links' in result and 'ontology' in result['links']:
                 ontology_url = result['links']['ontology']
                 # Extract acronym from URL like "https://data.bioontology.org/ontologies/NCIT"
                 if ontology_url:
                     ontology_acronym = ontology_url.split('/')[-1]
-            
+                    # Create BioPortal ontology page URL
+                    ontology_page_url = f"https://bioportal.bioontology.org/ontologies/{ontology_acronym}"
+
             if term_id and pref_label:
-                processed_results.append((term_id, pref_label, ontology_acronym))
-        
+                processed_results.append(
+                    (term_id, pref_label, ontology_acronym, ontology_page_url))
+
         return processed_results
-        
+
     except Exception as e:
         print(f"Error searching BioPortal: {e}")
         return []
