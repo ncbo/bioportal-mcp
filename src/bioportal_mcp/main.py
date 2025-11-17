@@ -401,7 +401,7 @@ mcp = FastMCP("bioportal_mcp")
 
 # Register all tools
 mcp.tool(search_ontology_terms)
-mcp.tool(annotate_text)
+#mcp.tool(annotate_text)
 
 
 def main():
