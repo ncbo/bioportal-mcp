@@ -82,6 +82,14 @@ This MCP server can be integrated with AI assistants like Claude Desktop. Add th
 }
 ```
 
+A streamable version of this MCP is also available from the following URL:
+
+```
+https://bioportal.fastmcp.app/mcp
+```
+
+This means it may be used through any agentic framework supporting HTTP streaming of MCPs.
+
 ### Examples
 
 ```python
