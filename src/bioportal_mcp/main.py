@@ -295,104 +295,104 @@ def search_ontology_terms(
         print(f"Error searching BioPortal: {e}")
         return []
 
+# DISABLED for now to avoid overloading BioPortal API
+# def annotate_text(
+#     text: str,
+#     ontologies: Optional[str] = None,
+#     longest_only: bool = False,
+#     exclude_numbers: bool = False,
+#     whole_word_only: bool = True,
+#     api_key: Optional[str] = None
+# ) -> List[Tuple[str, str, str, str, int, int]]:
+#     """
+#     Annotate text to find ontology terms mentioned in it.
 
-def annotate_text(
-    text: str,
-    ontologies: Optional[str] = None,
-    longest_only: bool = False,
-    exclude_numbers: bool = False,
-    whole_word_only: bool = True,
-    api_key: Optional[str] = None
-) -> List[Tuple[str, str, str, str, int, int]]:
-    """
-    Annotate text to find ontology terms mentioned in it.
+#     This function analyzes text and identifies mentions of ontology terms, returning
+#     information about each match including the matched text, class information, and location.
 
-    This function analyzes text and identifies mentions of ontology terms, returning
-    information about each match including the matched text, class information, and location.
+#     Args:
+#         text: The text to annotate (e.g., "Melanoma is a malignant tumor of melanocytes").
+#         ontologies: Comma-separated list of ontology acronyms to use (e.g., "NCIT,GO,HP").
+#                    If None, uses all ontologies.
+#         longest_only: If True, return only the longest match for overlapping annotations (default: False).
+#         exclude_numbers: If True, exclude annotations that are purely numeric (default: False).
+#         whole_word_only: If True, match whole words only (default: True).
+#         api_key: BioPortal API key. If not provided, uses BIOPORTAL_API_KEY environment variable.
 
-    Args:
-        text: The text to annotate (e.g., "Melanoma is a malignant tumor of melanocytes").
-        ontologies: Comma-separated list of ontology acronyms to use (e.g., "NCIT,GO,HP").
-                   If None, uses all ontologies.
-        longest_only: If True, return only the longest match for overlapping annotations (default: False).
-        exclude_numbers: If True, exclude annotations that are purely numeric (default: False).
-        whole_word_only: If True, match whole words only (default: True).
-        api_key: BioPortal API key. If not provided, uses BIOPORTAL_API_KEY environment variable.
+#     Returns:
+#         List[Tuple[str, str, str, str, int, int]]: List of tuples where each tuple contains:
+#             - Matched text (e.g., "Melanoma")
+#             - Class ID (e.g., "http://purl.obolibrary.org/obo/NCIT_C3224")
+#             - Preferred label (e.g., "Melanoma")
+#             - Ontology acronym (e.g., "NCIT")
+#             - Start position in text (e.g., 0)
+#             - End position in text (e.g., 8)
 
-    Returns:
-        List[Tuple[str, str, str, str, int, int]]: List of tuples where each tuple contains:
-            - Matched text (e.g., "Melanoma")
-            - Class ID (e.g., "http://purl.obolibrary.org/obo/NCIT_C3224")
-            - Preferred label (e.g., "Melanoma")
-            - Ontology acronym (e.g., "NCIT")
-            - Start position in text (e.g., 0)
-            - End position in text (e.g., 8)
+#     Examples:
+#         # Annotate medical text
+#         results = annotate_text("Melanoma is a malignant tumor of melanocytes")
 
-    Examples:
-        # Annotate medical text
-        results = annotate_text("Melanoma is a malignant tumor of melanocytes")
+#         # Annotate with specific ontologies
+#         results = annotate_text("breast cancer", ontologies="NCIT,DOID")
 
-        # Annotate with specific ontologies
-        results = annotate_text("breast cancer", ontologies="NCIT,DOID")
+#         # Get only longest matches
+#         results = annotate_text("breast cancer", longest_only=True)
+#     """
+#     try:
+#         ontology_list = None
+#         if ontologies:
+#             ontology_list = [ont.strip() for ont in ontologies.split(",")]
 
-        # Get only longest matches
-        results = annotate_text("breast cancer", longest_only=True)
-    """
-    try:
-        ontology_list = None
-        if ontologies:
-            ontology_list = [ont.strip() for ont in ontologies.split(",")]
+#         # Annotate using BioPortal API
+#         annotations = annotate_text_bioportal(
+#             text=text,
+#             api_key=api_key,
+#             ontologies=ontology_list,
+#             longest_only=longest_only,
+#             exclude_numbers=exclude_numbers,
+#             whole_word_only=whole_word_only,
+#             verbose=False
+#         )
 
-        # Annotate using BioPortal API
-        annotations = annotate_text_bioportal(
-            text=text,
-            api_key=api_key,
-            ontologies=ontology_list,
-            longest_only=longest_only,
-            exclude_numbers=exclude_numbers,
-            whole_word_only=whole_word_only,
-            verbose=False
-        )
+#         # Process annotations into simplified format
+#         processed_annotations = []
+#         for annotation in annotations:
+#             # Extract annotation information
+#             annotations_data = annotation.get('annotations', [])
+#             annotated_class = annotation.get('annotatedClass', {})
 
-        # Process annotations into simplified format
-        processed_annotations = []
-        for annotation in annotations:
-            # Extract annotation information
-            annotations_data = annotation.get('annotations', [])
-            annotated_class = annotation.get('annotatedClass', {})
+#             # Get class information
+#             class_id = annotated_class.get('@id', '')
+#             pref_label = annotated_class.get('prefLabel', '')
 
-            # Get class information
-            class_id = annotated_class.get('@id', '')
-            pref_label = annotated_class.get('prefLabel', '')
+#             # Extract ontology from links
+#             ontology_acronym = ''
+#             if 'links' in annotated_class and 'ontology' in annotated_class['links']:
+#                 ontology_url = annotated_class['links']['ontology']
+#                 if ontology_url:
+#                     ontology_acronym = ontology_url.split('/')[-1]
 
-            # Extract ontology from links
-            ontology_acronym = ''
-            if 'links' in annotated_class and 'ontology' in annotated_class['links']:
-                ontology_url = annotated_class['links']['ontology']
-                if ontology_url:
-                    ontology_acronym = ontology_url.split('/')[-1]
+#             # Get all text positions for this annotation
+#             for annot_detail in annotations_data:
+#                 matched_text = annot_detail.get('text', '')
+#                 start_pos = annot_detail.get('from', 0)
+#                 end_pos = annot_detail.get('to', 0)
 
-            # Get all text positions for this annotation
-            for annot_detail in annotations_data:
-                matched_text = annot_detail.get('text', '')
-                start_pos = annot_detail.get('from', 0)
-                end_pos = annot_detail.get('to', 0)
+#                 if class_id and pref_label and matched_text:
+#                     processed_annotations.append((
+#                         matched_text,
+#                         class_id,
+#                         pref_label,
+#                         ontology_acronym,
+#                         start_pos,
+#                         end_pos
+#                     ))
 
-                if class_id and pref_label and matched_text:
-                    processed_annotations.append((
-                        matched_text,
-                        class_id,
-                        pref_label,
-                        ontology_acronym,
-                        start_pos,
-                        end_pos
-                    ))
+#         return processed_annotations
 
-        return processed_annotations
-
-    except Exception as e:
-        print(f"Error annotating text with BioPortal: {e}")
-        return []
+#     except Exception as e:
+#         print(f"Error annotating text with BioPortal: {e}")
+#         return []
 
 
 # MAIN SECTION
