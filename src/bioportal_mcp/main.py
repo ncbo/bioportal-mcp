@@ -115,6 +115,122 @@ def search_bioportal(
     return all_records
 
 
+def search_properties_bioportal(
+    query: str,
+    api_key: Optional[str] = None,
+    ontologies: Optional[List[str]] = None,
+    require_exact_match: bool = False,
+    also_search_views: bool = False,
+    require_definitions: bool = False,
+    ontology_types: Optional[List[str]] = None,
+    property_types: Optional[List[str]] = None,
+    max_page_size: int = 50,
+    max_records: Optional[int] = None,
+    verbose: bool = False,
+) -> List[Dict[str, Any]]:
+    """
+    Search for ontology properties in BioPortal using the property search endpoint.
+
+    Args:
+        query: The search term to look for in property labels and IDs.
+        api_key: BioPortal API key. If not provided, will try to get from BIOPORTAL_API_KEY environment variable.
+        ontologies: List of ontology acronyms to restrict search to (e.g., ['NCIT', 'GO']).
+        require_exact_match: Whether to require exact matches only (by property id, label, or generated label).
+        also_search_views: Whether to include ontology views in the search.
+        require_definitions: Whether to filter results only to those that include definitions.
+        ontology_types: List of ontology types to filter by (e.g., ['ONTOLOGY', 'VALUE_SET_COLLECTION']).
+        property_types: List of property types to filter by (e.g., ['object', 'annotation', 'datatype']).
+        max_page_size: Maximum number of records to retrieve per API call.
+        max_records: Maximum total number of records to retrieve.
+        verbose: If True, print progress information during retrieval.
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a property search result.
+        Each result contains property information including '@id', 'label', 'definition', etc.
+    """
+    # Get API key from parameter or environment
+    if api_key is None:
+        api_key = os.getenv('BIOPORTAL_API_KEY')
+
+    if api_key is None:
+        raise ValueError(
+            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
+
+    base_url = "https://data.bioontology.org"
+    endpoint_url = f"{base_url}/property_search"
+
+    all_records = []
+    page = 1
+
+    while True:
+        params = {
+            "q": query,
+            "apikey": api_key,
+            "page": page,
+            "pagesize": max_page_size,
+            "require_exact_match": "true" if require_exact_match else "false",
+            "also_search_views": "true" if also_search_views else "false",
+            "require_definitions": "true" if require_definitions else "false",
+        }
+
+        if ontologies:
+            params["ontologies"] = ",".join(ontologies)
+
+        if ontology_types:
+            params["ontology_types"] = ",".join(ontology_types)
+
+        if property_types:
+            params["property_types"] = ",".join(property_types)
+
+        try:
+            response = requests.get(endpoint_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            if verbose:
+                print(f"Error fetching from BioPortal Property Search: {e}")
+            break
+        except ValueError as e:
+            if verbose:
+                print(f"Error parsing JSON response: {e}")
+            break
+
+        # BioPortal property search returns results in 'collection' field
+        if isinstance(data, dict) and 'collection' in data:
+            records = data['collection']
+        elif isinstance(data, list):
+            records = data
+        else:
+            if verbose:
+                print(f"Unexpected response format: {type(data)}")
+            break
+
+        if not records:
+            break
+
+        all_records.extend(records)
+
+        if verbose:
+            print(
+                f"Fetched {len(records)} property records from page {page}; total so far: {len(all_records)}")
+
+        # Check if we've hit the max_records limit
+        if max_records is not None and len(all_records) >= max_records:
+            all_records = all_records[:max_records]
+            if verbose:
+                print(
+                    f"Reached max_records limit: {max_records}. Stopping fetch.")
+            break
+
+        # BioPortal pagination: if we got fewer records than page size, we're done
+        if len(records) < max_page_size:
+            break
+
+        page += 1
+
+    return all_records
+
+
 def get_analytics_bioportal(
     api_key: Optional[str] = None,
     ontology_acronym: Optional[str] = None,
@@ -360,6 +476,104 @@ def search_ontology_terms(
         print(f"Error searching BioPortal: {e}")
         return []
 
+
+def search_ontology_properties(
+    query: str,
+    ontologies: Optional[str] = None,
+    max_results: int = 10,
+    require_exact_match: bool = False,
+    require_definitions: bool = False,
+    property_types: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> List[Tuple[str, str, str, str]]:
+    """
+    Search for ontology properties in BioPortal.
+
+    This function searches for ontology properties (object properties, annotation properties, 
+    datatype properties) by their labels and IDs across BioPortal ontologies.
+
+    Args:
+        query: The search term (e.g., "has part", "related to", "has dimension").
+        ontologies: Comma-separated list of ontology acronyms to search in (e.g., "NCIT,GO,HP").
+                   If None, searches across all ontologies.
+        max_results: Maximum number of results to return (default: 10).
+        require_exact_match: If True, only return exact matches by property id, label, or generated label (default: False).
+        require_definitions: If True, only return properties that have definitions (default: False).
+        property_types: Comma-separated list of property types to filter by: "object", "annotation", "datatype".
+                       If None, returns all property types.
+        api_key: BioPortal API key. If not provided, uses BIOPORTAL_API_KEY environment variable.
+
+    Returns:
+        List[Tuple[str, str, str, str]]: List of tuples where each tuple contains:
+            - Property ID (e.g., "http://www.w3.org/2000/01/rdf-schema#label")
+            - Property label (e.g., "label")
+            - Ontology acronym (e.g., "NCIT")
+            - Ontology URL (e.g., "https://bioportal.bioontology.org/ontologies/NCIT")
+
+    Examples:
+        # Search for properties containing "part"
+        results = search_ontology_properties("part")
+
+        # Search for object properties only
+        results = search_ontology_properties("related", property_types="object")
+
+        # Search for properties with definitions in specific ontologies
+        results = search_ontology_properties("has", ontologies="GO,CHEBI", require_definitions=True)
+    """
+    try:
+        ontology_list = None
+        if ontologies:
+            ontology_list = [ont.strip() for ont in ontologies.split(",")]
+
+        property_type_list = None
+        if property_types:
+            property_type_list = [pt.strip()
+                                  for pt in property_types.split(",")]
+
+        # Search using BioPortal Property Search API
+        results = search_properties_bioportal(
+            query=query,
+            api_key=api_key,
+            ontologies=ontology_list,
+            require_exact_match=require_exact_match,
+            require_definitions=require_definitions,
+            property_types=property_type_list,
+            max_records=max_results,
+            verbose=False
+        )
+
+        # Process results into simplified format
+        processed_results = []
+        for result in results[:max_results]:  # Ensure we don't exceed max_results
+            property_id = result.get('@id', '')
+
+            # Try to get label, fall back to labelGenerated
+            label = result.get('label', '')
+            if not label:
+                label = result.get('labelGenerated', '')
+
+            # Extract ontology from links if available
+            ontology_acronym = ''
+            ontology_page_url = ''
+            if 'links' in result and 'ontology' in result['links']:
+                ontology_url = result['links']['ontology']
+                # Extract acronym from URL like "https://data.bioontology.org/ontologies/NCIT"
+                if ontology_url:
+                    ontology_acronym = ontology_url.split('/')[-1]
+                    # Create BioPortal ontology page URL
+                    ontology_page_url = f"https://bioportal.bioontology.org/ontologies/{ontology_acronym}"
+
+            if property_id and label:
+                processed_results.append(
+                    (property_id, label, ontology_acronym, ontology_page_url))
+
+        return processed_results
+
+    except Exception as e:
+        print(f"Error searching BioPortal properties: {e}")
+        return []
+
+
 # DISABLED for now to avoid overloading BioPortal API
 # def annotate_text(
 #     text: str,
@@ -520,6 +734,7 @@ mcp = FastMCP("bioportal_mcp")
 
 # Register all tools
 mcp.tool(search_ontology_terms)
+mcp.tool(search_ontology_properties)
 mcp.tool(get_ontology_analytics)
 # mcp.tool(annotate_text)
 
