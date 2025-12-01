@@ -8,6 +8,59 @@ import requests
 from fastmcp import FastMCP
 
 
+# CONSTANTS
+BIOPORTAL_API_BASE_URL = "https://data.bioontology.org"
+BIOPORTAL_UI_BASE_URL = "https://bioportal.bioontology.org/ontologies"
+
+
+# HELPER FUNCTIONS
+def get_api_key(api_key: Optional[str] = None) -> str:
+    """
+    Get BioPortal API key from parameter or environment variable.
+
+    Args:
+        api_key: Optional API key provided directly.
+
+    Returns:
+        The API key string.
+
+    Raises:
+        ValueError: If no API key is provided or found in environment.
+    """
+    if api_key is None:
+        api_key = os.getenv('BIOPORTAL_API_KEY')
+
+    if api_key is None:
+        raise ValueError(
+            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
+
+    return api_key
+
+
+def extract_ontology_info(result: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    Extract ontology acronym and page URL from a BioPortal API result.
+
+    Args:
+        result: A dictionary containing BioPortal API result data.
+
+    Returns:
+        A tuple of (ontology_acronym, ontology_page_url).
+    """
+    ontology_acronym = ''
+    ontology_page_url = ''
+
+    if 'links' in result and 'ontology' in result['links']:
+        ontology_url = result['links']['ontology']
+        if ontology_url:
+            # Extract acronym from URL like "https://data.bioontology.org/ontologies/NCIT"
+            ontology_acronym = ontology_url.split('/')[-1]
+            # Create BioPortal ontology page URL
+            ontology_page_url = f"{BIOPORTAL_UI_BASE_URL}/{ontology_acronym}"
+
+    return ontology_acronym, ontology_page_url
+
+
 # API WRAPPER SECTION for BioPortal API
 def search_bioportal(
     query: str,
@@ -38,16 +91,8 @@ def search_bioportal(
         A list of dictionaries, where each dictionary represents a search result.
         Each result contains class information including '@id', 'prefLabel', 'definition', etc.
     """
-    # Get API key from parameter or environment
-    if api_key is None:
-        api_key = os.getenv('BIOPORTAL_API_KEY')
-
-    if api_key is None:
-        raise ValueError(
-            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
-
-    base_url = "https://data.bioontology.org"
-    endpoint_url = f"{base_url}/search"
+    api_key = get_api_key(api_key)
+    endpoint_url = f"{BIOPORTAL_API_BASE_URL}/search"
 
     all_records = []
     page = 1
@@ -148,16 +193,8 @@ def search_properties_bioportal(
         A list of dictionaries, where each dictionary represents a property search result.
         Each result contains property information including '@id', 'label', 'definition', etc.
     """
-    # Get API key from parameter or environment
-    if api_key is None:
-        api_key = os.getenv('BIOPORTAL_API_KEY')
-
-    if api_key is None:
-        raise ValueError(
-            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
-
-    base_url = "https://data.bioontology.org"
-    endpoint_url = f"{base_url}/property_search"
+    api_key = get_api_key(api_key)
+    endpoint_url = f"{BIOPORTAL_API_BASE_URL}/property_search"
 
     all_records = []
     page = 1
@@ -252,21 +289,13 @@ def get_analytics_bioportal(
         A dictionary containing analytics data. For all ontologies, returns a dictionary with ontology
         acronyms as keys. For a single ontology, returns detailed analytics including visitor stats by month/year.
     """
-    # Get API key from parameter or environment
-    if api_key is None:
-        api_key = os.getenv('BIOPORTAL_API_KEY')
-
-    if api_key is None:
-        raise ValueError(
-            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
-
-    base_url = "https://data.bioontology.org"
+    api_key = get_api_key(api_key)
 
     # Determine endpoint based on ontology_acronym
     if ontology_acronym:
-        endpoint_url = f"{base_url}/ontologies/{ontology_acronym}/analytics"
+        endpoint_url = f"{BIOPORTAL_API_BASE_URL}/ontologies/{ontology_acronym}/analytics"
     else:
-        endpoint_url = f"{base_url}/analytics"
+        endpoint_url = f"{BIOPORTAL_API_BASE_URL}/analytics"
 
     params = {
         "apikey": api_key,
@@ -456,15 +485,7 @@ def search_ontology_terms(
             pref_label = result.get('prefLabel', '')
 
             # Extract ontology from links if available
-            ontology_acronym = ''
-            ontology_page_url = ''
-            if 'links' in result and 'ontology' in result['links']:
-                ontology_url = result['links']['ontology']
-                # Extract acronym from URL like "https://data.bioontology.org/ontologies/NCIT"
-                if ontology_url:
-                    ontology_acronym = ontology_url.split('/')[-1]
-                    # Create BioPortal ontology page URL
-                    ontology_page_url = f"https://bioportal.bioontology.org/ontologies/{ontology_acronym}"
+            ontology_acronym, ontology_page_url = extract_ontology_info(result)
 
             if term_id and pref_label:
                 processed_results.append(
@@ -553,15 +574,7 @@ def search_ontology_properties(
                 label = result.get('labelGenerated', '')
 
             # Extract ontology from links if available
-            ontology_acronym = ''
-            ontology_page_url = ''
-            if 'links' in result and 'ontology' in result['links']:
-                ontology_url = result['links']['ontology']
-                # Extract acronym from URL like "https://data.bioontology.org/ontologies/NCIT"
-                if ontology_url:
-                    ontology_acronym = ontology_url.split('/')[-1]
-                    # Create BioPortal ontology page URL
-                    ontology_page_url = f"https://bioportal.bioontology.org/ontologies/{ontology_acronym}"
+            ontology_acronym, ontology_page_url = extract_ontology_info(result)
 
             if property_id and label:
                 processed_results.append(
