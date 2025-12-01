@@ -114,6 +114,71 @@ def search_bioportal(
 
     return all_records
 
+
+def get_analytics_bioportal(
+    api_key: Optional[str] = None,
+    ontology_acronym: Optional[str] = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    verbose: bool = False,
+) -> Dict[str, Any]:
+    """
+    Get ontology analytics data from BioPortal using the analytics endpoint.
+
+    Args:
+        api_key: BioPortal API key. If not provided, will try to get from BIOPORTAL_API_KEY environment variable.
+        ontology_acronym: Ontology acronym to get analytics for (e.g., 'NCIT'). If None, gets all analytics.
+        month: Month number (1-12) for filtering analytics by month/year.
+        year: Year for filtering analytics by month/year (e.g., 2024).
+        verbose: If True, print progress information during retrieval.
+
+    Returns:
+        A dictionary containing analytics data. For all ontologies, returns a dictionary with ontology
+        acronyms as keys. For a single ontology, returns detailed analytics including visitor stats by month/year.
+    """
+    # Get API key from parameter or environment
+    if api_key is None:
+        api_key = os.getenv('BIOPORTAL_API_KEY')
+
+    if api_key is None:
+        raise ValueError(
+            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
+
+    base_url = "https://data.bioontology.org"
+
+    # Determine endpoint based on ontology_acronym
+    if ontology_acronym:
+        endpoint_url = f"{base_url}/ontologies/{ontology_acronym}/analytics"
+    else:
+        endpoint_url = f"{base_url}/analytics"
+
+    params = {
+        "apikey": api_key,
+    }
+
+    # Add month/year parameters if provided (only valid for global analytics)
+    if not ontology_acronym:
+        if month is not None:
+            params["month"] = str(month)
+        if year is not None:
+            params["year"] = str(year)
+
+    try:
+        response = requests.get(endpoint_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"Error fetching from BioPortal Analytics: {e}")
+        return {}
+    except ValueError as e:
+        if verbose:
+            print(f"Error parsing JSON response: {e}")
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
 # DISABLED for now to avoid overloading BioPortal API
 # def annotate_text_bioportal(
 #     text: str,
@@ -395,13 +460,68 @@ def search_ontology_terms(
 #         return []
 
 
+def get_ontology_analytics(
+    ontology_acronym: Optional[str] = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    api_key: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get visitor analytics for BioPortal ontologies.
+
+    This function retrieves Google Analytics data for ontology visits. You can get analytics
+    for all ontologies, filter by month/year, or get detailed analytics for a specific ontology.
+
+    Args:
+        ontology_acronym: Ontology acronym to get analytics for (e.g., "NCIT", "GO").
+                         If None, returns analytics for all ontologies.
+        month: Month number (1-12) to filter analytics. Only valid when ontology_acronym is None.
+        year: Year to filter analytics (e.g., 2024). Only valid when ontology_acronym is None.
+        api_key: BioPortal API key. If not provided, uses BIOPORTAL_API_KEY environment variable.
+
+    Returns:
+        Dict[str, Any]: Analytics data dictionary containing visitor statistics.
+            - For all ontologies: returns dict with ontology acronyms as keys and visit counts
+            - For single ontology: returns detailed analytics with monthly/yearly breakdowns
+
+    Examples:
+        # Get analytics for all ontologies
+        analytics = get_ontology_analytics()
+
+        # Get analytics for a specific ontology
+        analytics = get_ontology_analytics(ontology_acronym="NCIT")
+
+        # Get analytics for all ontologies in April 2024
+        analytics = get_ontology_analytics(month=4, year=2024)
+
+        # Get analytics for all ontologies in 2024
+        analytics = get_ontology_analytics(year=2024)
+    """
+    try:
+        # Get analytics using BioPortal API
+        analytics_data = get_analytics_bioportal(
+            api_key=api_key,
+            ontology_acronym=ontology_acronym,
+            month=month,
+            year=year,
+            verbose=False
+        )
+
+        return analytics_data
+
+    except Exception as e:
+        print(f"Error getting analytics from BioPortal: {e}")
+        return {}
+
+
 # MAIN SECTION
 # Create the FastMCP instance
 mcp = FastMCP("bioportal_mcp")
 
 # Register all tools
 mcp.tool(search_ontology_terms)
-#mcp.tool(annotate_text)
+mcp.tool(get_ontology_analytics)
+# mcp.tool(annotate_text)
 
 
 def main():
