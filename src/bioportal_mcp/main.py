@@ -114,104 +114,104 @@ def search_bioportal(
 
     return all_records
 
+# DISABLED for now to avoid overloading BioPortal API
+# def annotate_text_bioportal(
+#     text: str,
+#     api_key: Optional[str] = None,
+#     ontologies: Optional[List[str]] = None,
+#     semantic_types: Optional[List[str]] = None,
+#     expand_semantic_types_hierarchy: bool = False,
+#     expand_class_hierarchy: bool = False,
+#     class_hierarchy_max_level: int = 0,
+#     expand_mappings: bool = False,
+#     stop_words: Optional[List[str]] = None,
+#     minimum_match_length: Optional[int] = None,
+#     exclude_numbers: bool = False,
+#     whole_word_only: bool = True,
+#     exclude_synonyms: bool = False,
+#     longest_only: bool = False,
+#     verbose: bool = False,
+# ) -> List[Dict[str, Any]]:
+#     """
+#     Annotate text using the BioPortal Annotator endpoint.
 
-def annotate_text_bioportal(
-    text: str,
-    api_key: Optional[str] = None,
-    ontologies: Optional[List[str]] = None,
-    semantic_types: Optional[List[str]] = None,
-    expand_semantic_types_hierarchy: bool = False,
-    expand_class_hierarchy: bool = False,
-    class_hierarchy_max_level: int = 0,
-    expand_mappings: bool = False,
-    stop_words: Optional[List[str]] = None,
-    minimum_match_length: Optional[int] = None,
-    exclude_numbers: bool = False,
-    whole_word_only: bool = True,
-    exclude_synonyms: bool = False,
-    longest_only: bool = False,
-    verbose: bool = False,
-) -> List[Dict[str, Any]]:
-    """
-    Annotate text using the BioPortal Annotator endpoint.
+#     Args:
+#         text: The text to annotate.
+#         api_key: BioPortal API key. If not provided, will try to get from BIOPORTAL_API_KEY environment variable.
+#         ontologies: List of ontology acronyms to use for annotation (e.g., ['NCIT', 'GO']).
+#         semantic_types: List of UMLS semantic type identifiers to filter by.
+#         expand_semantic_types_hierarchy: Use semantic types and their immediate children.
+#         expand_class_hierarchy: Include ancestors of classes when annotating.
+#         class_hierarchy_max_level: Depth of hierarchy to use (0 = no hierarchy).
+#         expand_mappings: Use manual mappings (UMLS, REST, CUI, OBOXREF) in annotation.
+#         stop_words: Custom list of stop words (case insensitive).
+#         minimum_match_length: Minimum length of matched text.
+#         exclude_numbers: Exclude annotations that are numbers.
+#         whole_word_only: Match whole words only.
+#         exclude_synonyms: Exclude synonym matches.
+#         longest_only: Return only the longest match for a given phrase.
+#         verbose: If True, print progress information during retrieval.
 
-    Args:
-        text: The text to annotate.
-        api_key: BioPortal API key. If not provided, will try to get from BIOPORTAL_API_KEY environment variable.
-        ontologies: List of ontology acronyms to use for annotation (e.g., ['NCIT', 'GO']).
-        semantic_types: List of UMLS semantic type identifiers to filter by.
-        expand_semantic_types_hierarchy: Use semantic types and their immediate children.
-        expand_class_hierarchy: Include ancestors of classes when annotating.
-        class_hierarchy_max_level: Depth of hierarchy to use (0 = no hierarchy).
-        expand_mappings: Use manual mappings (UMLS, REST, CUI, OBOXREF) in annotation.
-        stop_words: Custom list of stop words (case insensitive).
-        minimum_match_length: Minimum length of matched text.
-        exclude_numbers: Exclude annotations that are numbers.
-        whole_word_only: Match whole words only.
-        exclude_synonyms: Exclude synonym matches.
-        longest_only: Return only the longest match for a given phrase.
-        verbose: If True, print progress information during retrieval.
+#     Returns:
+#         A list of dictionaries, where each dictionary represents an annotation.
+#         Each annotation contains information about the matched text, location, and associated ontology class.
+#     """
+#     # Get API key from parameter or environment
+#     if api_key is None:
+#         api_key = os.getenv('BIOPORTAL_API_KEY')
 
-    Returns:
-        A list of dictionaries, where each dictionary represents an annotation.
-        Each annotation contains information about the matched text, location, and associated ontology class.
-    """
-    # Get API key from parameter or environment
-    if api_key is None:
-        api_key = os.getenv('BIOPORTAL_API_KEY')
+#     if api_key is None:
+#         raise ValueError(
+#             "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
 
-    if api_key is None:
-        raise ValueError(
-            "BioPortal API key is required. Provide it as a parameter or set BIOPORTAL_API_KEY environment variable.")
+#     base_url = "https://data.bioontology.org"
+#     endpoint_url = f"{base_url}/annotator"
 
-    base_url = "https://data.bioontology.org"
-    endpoint_url = f"{base_url}/annotator"
+#     params = {
+#         "text": text,
+#         "apikey": api_key,
+#         "expand_semantic_types_hierarchy": "true" if expand_semantic_types_hierarchy else "false",
+#         "expand_class_hierarchy": "true" if expand_class_hierarchy else "false",
+#         "class_hierarchy_max_level": class_hierarchy_max_level,
+#         "expand_mappings": "true" if expand_mappings else "false",
+#         "exclude_numbers": "true" if exclude_numbers else "false",
+#         "whole_word_only": "true" if whole_word_only else "false",
+#         "exclude_synonyms": "true" if exclude_synonyms else "false",
+#         "longest_only": "true" if longest_only else "false",
+#     }
 
-    params = {
-        "text": text,
-        "apikey": api_key,
-        "expand_semantic_types_hierarchy": "true" if expand_semantic_types_hierarchy else "false",
-        "expand_class_hierarchy": "true" if expand_class_hierarchy else "false",
-        "class_hierarchy_max_level": class_hierarchy_max_level,
-        "expand_mappings": "true" if expand_mappings else "false",
-        "exclude_numbers": "true" if exclude_numbers else "false",
-        "whole_word_only": "true" if whole_word_only else "false",
-        "exclude_synonyms": "true" if exclude_synonyms else "false",
-        "longest_only": "true" if longest_only else "false",
-    }
+#     if ontologies:
+#         params["ontologies"] = ",".join(ontologies)
 
-    if ontologies:
-        params["ontologies"] = ",".join(ontologies)
+#     if semantic_types:
+#         params["semantic_types"] = ",".join(semantic_types)
 
-    if semantic_types:
-        params["semantic_types"] = ",".join(semantic_types)
+#     if stop_words:
+#         params["stop_words"] = ",".join(stop_words)
 
-    if stop_words:
-        params["stop_words"] = ",".join(stop_words)
+#     if minimum_match_length is not None:
+#         params["minimum_match_length"] = minimum_match_length
 
-    if minimum_match_length is not None:
-        params["minimum_match_length"] = minimum_match_length
+#     try:
+#         response = requests.get(endpoint_url, params=params)
+#         response.raise_for_status()
+#         data = response.json()
+#     except requests.exceptions.RequestException as e:
+#         if verbose:
+#             print(f"Error fetching from BioPortal Annotator: {e}")
+#         return []
+#     except ValueError as e:
+#         if verbose:
+#             print(f"Error parsing JSON response: {e}")
+#         return []
 
-    try:
-        response = requests.get(endpoint_url, params=params)
-        response.raise_for_status()
-        data = response.json()
-    except requests.exceptions.RequestException as e:
-        if verbose:
-            print(f"Error fetching from BioPortal Annotator: {e}")
-        return []
-    except ValueError as e:
-        if verbose:
-            print(f"Error parsing JSON response: {e}")
-        return []
-
-    # BioPortal annotator returns a list of annotations
-    if isinstance(data, list):
-        return data
-    else:
-        if verbose:
-            print(f"Unexpected response format: {type(data)}")
-        return []
+#     # BioPortal annotator returns a list of annotations
+#     if isinstance(data, list):
+#         return data
+#     else:
+#         if verbose:
+#             print(f"Unexpected response format: {type(data)}")
+#         return []
 
 
 # MCP TOOL SECTION
